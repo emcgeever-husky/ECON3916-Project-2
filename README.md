@@ -45,8 +45,8 @@ Run all cells top-to-bottom. This regenerates `model.pkl` and `training_columns.
 
 ---
 
-## Running the Streamlit App Locally
+## Running the App Locally
 
-    streamlit run app.py
+streamlit run app.py
 
-Requires `model.pkl` and `training_columns.json` in the project root. Run the notebook first if these are not present.
+Because model.pkl was too big to push to git, on the first run, the app trains the Random Forest from the dataset CSV and saves model.pkl automatically. All random operations use random_state=42.

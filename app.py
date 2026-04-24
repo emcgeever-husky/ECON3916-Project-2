@@ -33,8 +33,8 @@ def load_model():
     # Binarize outcome
     sat = {"Highly Satisfactory", "Satisfactory", "Moderately Satisfactory"}
     unsat = {"Highly Unsatisfactory", "Unsatisfactory", "Moderately Unsatisfactory"}
-    df = df[df["IEG Outcome"].isin(sat | unsat)].copy()
-    df["Outcome_Binary"] = df["IEG Outcome"].apply(lambda x: 1 if x in sat else 0)
+    df = df[df["Outcome"].isin(sat | unsat)].copy()
+    df["Outcome_Binary"] = df["Outcome"].apply(lambda x: 1 if x in sat else 0)
 
     # Era feature
     def assign_era(fy):
@@ -46,11 +46,11 @@ def load_model():
     df["Approval Era"] = df["Approval FY"].apply(assign_era)
     df["Practice Group"] = df["Practice Group"].fillna("Unknown")
 
-    # Outlier removal
-    Q1, Q3 = df["Years_to_Evaluation"].quantile(0.25), df["Years_to_Evaluation"].quantile(0.75) if "Years_to_Evaluation" in df.columns else (None, None)
-    if Q1 is not None:
-        IQR = Q3 - Q1
-        df = df[df["Years_to_Evaluation"] <= Q3 + 1.5 * IQR]
+    # Outlier removal on evaluation duration
+    df["Years_to_Evaluation"] = df["Evaluation FY"] - df["Approval FY"]
+    Q1, Q3 = df["Years_to_Evaluation"].quantile(0.25), df["Years_to_Evaluation"].quantile(0.75)
+    IQR = Q3 - Q1
+    df = df[df["Years_to_Evaluation"] <= Q3 + 1.5 * IQR]
 
     features = ["WB Region", "Lending Instrument Type", "Agreement Type",
                 "Practice Group", "Country / Economy FCS Status",

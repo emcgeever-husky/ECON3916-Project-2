@@ -13,12 +13,60 @@ st.markdown(
     "based on project characteristics observable at approval. Built on IEG ratings data (N=12,472, 1956-2024)."
 )
 
-# Load model and training columns
+# Load or train model
 @st.cache_resource
 def load_model():
-    model = joblib.load("model.pkl")
-    with open("training_columns.json") as f:
-        cols = json.load(f)
+    import os
+    from sklearn.ensemble import RandomForestClassifier
+
+    if os.path.exists("model.pkl") and os.path.exists("training_columns.json"):
+        model = joblib.load("model.pkl")
+        with open("training_columns.json") as f:
+            cols = json.load(f)
+        return model, cols
+
+    # Retrain if model.pkl not present
+    st.info("model.pkl not found — training model from dataset. This takes ~30 seconds.")
+    DATA_PATH = "dataset/ieg_world_bank_project_performance_ratings_04-19-2026.csv"
+    df = pd.read_csv(DATA_PATH, encoding="latin1")
+
+    # Binarize outcome
+    sat = {"Highly Satisfactory", "Satisfactory", "Moderately Satisfactory"}
+    unsat = {"Highly Unsatisfactory", "Unsatisfactory", "Moderately Unsatisfactory"}
+    df = df[df["IEG Outcome"].isin(sat | unsat)].copy()
+    df["Outcome_Binary"] = df["IEG Outcome"].apply(lambda x: 1 if x in sat else 0)
+
+    # Era feature
+    def assign_era(fy):
+        if fy < 1975: return "Bretton Woods Era"
+        elif fy < 1990: return "Structural Adjustment Era"
+        elif fy < 2000: return "Post-Washington Consensus"
+        elif fy < 2010: return "MDG Era"
+        else: return "SDG Era"
+    df["Approval Era"] = df["Approval FY"].apply(assign_era)
+    df["Practice Group"] = df["Practice Group"].fillna("Unknown")
+
+    # Outlier removal
+    Q1, Q3 = df["Years_to_Evaluation"].quantile(0.25), df["Years_to_Evaluation"].quantile(0.75) if "Years_to_Evaluation" in df.columns else (None, None)
+    if Q1 is not None:
+        IQR = Q3 - Q1
+        df = df[df["Years_to_Evaluation"] <= Q3 + 1.5 * IQR]
+
+    features = ["WB Region", "Lending Instrument Type", "Agreement Type",
+                "Practice Group", "Country / Economy FCS Status",
+                "Country / Economy Lending Group", "Approval Era"]
+    df_model = df[features + ["Outcome_Binary"]].dropna()
+    X = pd.get_dummies(df_model[features])
+    y = df_model["Outcome_Binary"]
+
+    model = RandomForestClassifier(n_estimators=200, class_weight="balanced", random_state=42)
+    model.fit(X, y)
+
+    cols = list(X.columns)
+    joblib.dump(model, "model.pkl")
+    with open("training_columns.json", "w") as f:
+        json.dump(cols, f)
+
     return model, cols
 
 model, training_cols = load_model()

@@ -27,7 +27,7 @@ def load_model():
 
     # Retrain if model.pkl not present
     st.info("model.pkl not found — training model from dataset. This takes ~30 seconds.")
-    DATA_PATH = "dataset/ieg_world_bank_project_performance_ratings_04-19-2026.csv"
+    DATA_PATH = "ieg_world_bank_project_performance_ratings_04-19-2026.csv"
     df = pd.read_csv(DATA_PATH, encoding="latin1")
 
     # Binarize outcome
